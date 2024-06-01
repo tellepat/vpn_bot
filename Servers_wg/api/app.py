@@ -9,7 +9,11 @@ app = Flask(__name__)
 app.config.from_object(Config)
 db = SQLAlchemy(app)
 
+
 class Client(db.Model):
+    """
+    Модель клиента использующаяся SQLAlchemy для создания и взаимодействия с базой данных
+    """
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     private_key = db.Column(db.String(255), nullable=False)
@@ -19,7 +23,11 @@ class Client(db.Model):
     def __repr__(self):
         return f'<Client {self.name}>'
 
+
 class ServerConfig(db.Model):
+    """
+    Модель конфигурации сервера использующаяся SQLAlchemy для создания и взаимодействия с базой данных
+    """
     id = db.Column(db.Integer, primary_key=True)
     private_key = db.Column(db.String(255), nullable=False)
     public_key = db.Column(db.String(255), nullable=False)
@@ -27,7 +35,12 @@ class ServerConfig(db.Model):
     def __repr__(self):
         return f'<ServerConfig>'
 
+
 def get_server_keys():
+    """
+    Получает приватный и публичный ключи сервера из файлов
+    :return: Приватный и публичный ключ
+    """
     config = ServerConfig.query.first()
     if config is None:
         with open('/config/server_private_key', 'r') as f:
@@ -39,8 +52,13 @@ def get_server_keys():
         db.session.commit()
     return config.private_key, config.public_key
 
+
 @app.route('/add_client', methods=['POST'])
 def add_client():
+    """
+    Создание клиента. Сохраняет конфигурацию в базу данных, пересоздаёт конфигурацию сервера. Перезапускает сервер
+    :return: Конфигурация клиента
+    """
     client_name = request.json.get('name')
     if not client_name:
         return jsonify({"error": "Client name is required"}), 400
@@ -62,8 +80,13 @@ def add_client():
 
     return jsonify({"client_config": client_config}), 201
 
+
 @app.route('/remove_client', methods=['POST'])
 def remove_client():
+    """
+    Удаляет клиента из базы данных, из конфигурации сервера. Перезапускает сервер
+    :return: Результат операции удаления
+    """
     client_name = request.json.get('name')
     if not client_name:
         return jsonify({"error": "Client name is required"}), 400
@@ -80,12 +103,24 @@ def remove_client():
 
     return jsonify({"status": "Client removed"}), 200
 
+
 @app.route('/clients', methods=['GET'])
 def list_clients():
+    """
+    :return: полный список клиентов
+    """
     clients = Client.query.all()
-    return jsonify([{"name": client.name, "public_key": client.public_key, "ip_address": client.ip_address} for client in clients])
+    return jsonify(
+        [{"name": client.name, "public_key": client.public_key, "ip_address": client.ip_address} for client in clients])
+
 
 def generate_client_config(private_key, ip_address):
+    """
+    Создаёт конфигурацию клиента
+    :param private_key: Приватный ключ клиента
+    :param ip_address: ip аддрес клиента
+    :return: Конфигерация клиента
+    """
     server_private_key, server_public_key = get_server_keys()
     server_ip = os.environ.get('SERVER_IP', '127.0.0.1')
 
@@ -102,7 +137,11 @@ AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 21
 """
 
+
 def update_server_config():
+    """
+    Пересоздаёт конфигурацию сервера со всеми клиентами
+    """
     server_private_key, server_public_key = get_server_keys()
     clients = Client.query.all()
     with open(app.config['WG_CONFIG_PATH'], 'w') as wg_conf:
@@ -115,9 +154,14 @@ ListenPort = 51820
         for client in clients:
             wg_conf.write(f"\n[Peer]\nPublicKey = {client.public_key}\nAllowedIPs = {client.ip_address}\n")
 
+
 def restart_wireguard():
+    """
+    Перезапускает сервер wireguard
+    """
     subprocess.run(['wg-quick', 'down', 'wg0'], check=True)
     subprocess.run(['wg-quick', 'up', 'wg0'], check=True)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
