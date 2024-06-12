@@ -1,0 +1,5 @@
+python-dotenv
+outline-api
+python-telegram-bot[job-queue]
+requests
+apscheduler
