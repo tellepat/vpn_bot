@@ -1,18 +1,25 @@
 import os
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, Column, Integer, String, Date, Boolean
-from sqlalchemy.orm import sessionmaker, declarative_base
-from datetime import date
-from sqlalchemy import JSON
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import Column, Integer, JSON, select
+from contextlib import asynccontextmanager
 
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
-print(DATABASE_URL)
 
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Создание асинхронного двигателя
+engine = create_async_engine(DATABASE_URL, echo=True, future=True)
+
+# Создание асинхронной фабрики сессий
+SessionLocal = sessionmaker(
+    bind=engine,
+    expire_on_commit=False,
+    class_=AsyncSession
+)
+
 Base = declarative_base()
-
 
 class Client(Base):
     __tablename__ = "clients"
@@ -22,26 +29,27 @@ class Client(Base):
     outline_key = Column(JSON, index=True)
     payment_dates = Column(JSON, index=True)
 
+async def init_db():
+    async with engine.begin() as conn:
+        # Создание всех таблиц
+        await conn.run_sync(Base.metadata.create_all)
 
-def init_db():
-    Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def get_db():
+    async with SessionLocal() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
 
+async def get_client(db: AsyncSession, chat_id: int) -> Client:
+    result = await db.execute(
+        select(Client).filter(Client.chat_id == chat_id)
+    )
+    return result.scalars().first()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def get_client(db, chat_id: int) -> Client:
-    return db.query(Client).filter(Client.chat_id == chat_id).first()
-
-
-def save_client(db, client: Client):
+async def save_client(db: AsyncSession, client: Client):
     db.add(client)
-    db.commit()
-    db.refresh(client)
+    await db.commit()
+    await db.refresh(client)
     return client
-
