@@ -1,13 +1,13 @@
 FROM alpine:latest
 
 # Установка необходимых пакетов
-RUN apk update && apk add --no-cache \
-    wireguard-tools \
-    iptables \
-    python3 \
-    py3-pip \
-    sqlite \
-    bash
+RUN apk update
+RUN apk add --no-cache wireguard-tools
+RUN apk add --no-cache iptables
+RUN apk add --no-cache python3
+RUN apk add --no-cache py3-pip
+RUN apk add --no-cache sqlite
+RUN apk add --no-cache bash
 
 # Создание рабочего каталога
 WORKDIR /app
@@ -24,7 +24,6 @@ RUN chmod +x /init.sh
 
 # Установка переменных окружения
 ENV WG_CONFIG_PATH=/config/wg0.conf
-ENV SERVER_IP=<YOUR_SERVER_IP>
 ENV PATH="/app/venv/bin:$PATH"
 
 # Expose портов

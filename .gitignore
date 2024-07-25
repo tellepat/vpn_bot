@@ -1,3 +1,5 @@
 .env
 venv
 .idea
+clients.db
+Servers_wg/build/api_server_wg

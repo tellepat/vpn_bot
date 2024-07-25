@@ -17,5 +17,4 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Europe/Moscow
-      - SERVER_IP=<YOUR_SERVER_IP>
     restart: unless-stopped
